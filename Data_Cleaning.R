@@ -14,6 +14,10 @@ library(TukeyC)
 library(ggpubr)
 library(patchwork)
 library(ggforce)
+library(lme4)
+library(nlme)
+library(gt)
+
 
 
 #Read in data
@@ -366,3 +370,123 @@ filt2<-join%>%
   filter(Treatment=="Sheltered")
 linreg<-lm(data=filt, formula = SCP_Value~MonthlyRange)
 
+
+regstats<-function(data, a, b, c){
+  .<-data%>%
+    filter(Month.x==a, Treatment==b)
+  joined<-glm(data=., formula=paste("SCP_Value", "~",c, collapse= " "))
+  x<-(coef(summary(joined)))
+  return(x)
+}
+
+months<-unique(join$Month.x)
+treatments<-unique(join$Treatment)
+reg<-expand.grid(Months=months, Treatments=treatments)
+reg<-reg%>%
+  arrange(factor(Months, levels=c("November", "December", "January", "February", "March", "April")))
+reg<-reg[rep(seq_len(nrow(reg)),each=2),]
+s<-rep(c("Intercept","TwoWeekMeanTemp"), times=12)
+reg$Coefficient<-s
+
+regression_stats<-list()
+for(i in seq_along(months)){
+  for(j in seq_along(treatments)){
+    .<-(regstats(join, months[i], treatments[j], "TwoWeekMinTemp")) #Change Independent variable here
+    regression_stats[[paste0(months[i], "_vs_", treatments[j])]]<-.
+  }
+}
+regression_stats
+
+Minframe<-do.call("rbind", regression_stats) #This one works
+TwoWeekMinTempStats<-bind_cols(reg,Minframe)
+
+#Mean Temp
+regression_stats<-list()
+for(i in seq_along(months)){
+  for(j in seq_along(treatments)){
+    .<-(regstats(join, months[i], treatments[j], "TwoWeekMeanTemp")) #Change Independent variable here
+    regression_stats[[paste0(months[i], "_vs_", treatments[j])]]<-.
+  }
+}
+Meanframe<-do.call("rbind", regression_stats)
+TwoWeekMeanTempStats<-bind_cols(reg,Meanframe)
+
+#Max Temp
+regression_stats<-list()
+for(i in seq_along(months)){
+  for(j in seq_along(treatments)){
+    .<-(regstats(join, months[i], treatments[j], "TwoWeekMaxTemp")) #Change Independent variable here
+    regression_stats[[paste0(months[i], "_vs_", treatments[j])]]<-.
+  }
+}
+Maxframe<-do.call("rbind", regression_stats)
+TwoWeekMaxTempStats<-bind_cols(reg,Maxframe)
+TwoWeekMinTempStats$`Pr(>|t|)`<-format(TwoWeekMinTempStats$`Pr(>|t|)`, scientific=FALSE)
+class(TwoWeekMinTempStats)
+
+#Month Mean Temp
+regression_stats<-list()
+for(i in seq_along(months)){
+  for(j in seq_along(treatments)){
+    .<-(regstats(join, months[i], treatments[j], "MonthlyMean")) #Change Independent variable here
+    regression_stats[[paste0(months[i], "_vs_", treatments[j])]]<-.
+  }
+}
+MonthMeanFrame<-do.call("rbind", regression_stats)
+MonthMeanTempStats<-bind_cols(reg,MonthMeanFrame)
+
+
+
+
+options(scipen=999)
+
+TwoWeekMinTempStats<-as_tibble(TwoWeekMinTempStats)
+gt_TwoWeekMinTempStats<-gt(TwoWeekMinTempStats)
+
+
+gt_TwoWeekMinTempStats<-gt_TwoWeekMinTempStats%>%
+  tab_header(title="SCP vs. Mean Minimum Temperature Two Weeks Prior to Collection")%>%
+  #data_color(column=Treatments, target_columns = everything(), palette = c("green", "purple"))%>%
+  opt_table_font(font = google_font(name="Times New Roman"))%>%
+  opt_align_table_header("left")%>%
+  tab_options(table.margin.left = 0, table.margin.right=-10)
+
+gt_TwoWeekMinTempStats
+
+TwoWeekMaxTempStats<-as.tibble(TwoWeekMaxTempStats)
+gt_TwoWeekMaxTempStats<-gt(TwoWeekMaxTempStats)
+
+gt_TwoWeekMaxTempStats<-gt_TwoWeekMaxTempStats%>%
+  tab_header(title="SCP vs. Mean Maximum Temperature Two Weeks Prior to Collection")%>%
+  #data_color(column=Treatments, target_columns = everything(), palette = c("green", "purple"))%>%
+  opt_table_font(font = google_font(name="Times New Roman"))%>%
+  opt_align_table_header("left")%>%
+  tab_options(table.margin.left = 0, table.margin.right=-10)
+
+gt_TwoWeekMaxTempStats
+
+
+TwoWeekMeanTempStats<-as.tibble(TwoWeekMeanTempStats)
+gt_TwoWeekMeanTempStats<-gt(TwoWeekMeanTempStats)
+
+gt_TwoWeekMeanTempStats<-gt_TwoWeekMeanTempStats%>%
+  tab_header(title="SCP vs. Mean Temperature Two Weeks Prior to Collection")%>%
+  # data_color(column=Treatments, target_columns = everything(), palette = c("green", "purple"))%>%
+  opt_table_font(font = google_font(name="Times New Roman"))%>%
+  opt_align_table_header("left")%>%
+  tab_options(table.margin.left = 0, table.margin.right=-10)
+
+gt_TwoWeekMeanTempStats
+
+MonthMeanTempStats<-as.tibble(MonthMeanTempStats)
+
+gt_MonthMeanTempStats<-gt(MonthMeanTempStats)
+
+gt_MonthMeanTempStats<-gt_MonthMeanTempStats%>%
+  tab_header(title="SCP vs. Mean Monthly  Temperature")%>%
+  # data_color(column=Treatments, target_columns = everything(), palette = c("green", "purple"))%>%
+  opt_table_font(font = google_font(name="Times New Roman"))%>%
+  opt_align_table_header("left")%>%
+  tab_options(table.margin.left = 0, table.margin.right=-10)
+
+gt_MonthMeanTempStats
