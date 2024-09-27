@@ -1,11 +1,6 @@
 source("Data_Cleaning.R")
 
 
-
-library(lme4)
-library(nlme)
-
-
 anova<-aov(data=fullData, formula = MeanSCP~Treatment*Month+Block)#Final Nested ANOVA design, same as: MeanSCP~Block+Treatment+Month+Treatment:Month. So does block interact with month, or only treatment?
 summary(anova)
 
@@ -97,8 +92,26 @@ qqline(stats$SCP_Value, col="steelblue", lwd=2)
 shapiro.test(stats$SCP_Value)
 
 
-#Linear Regression
-linmod<-lm(data=fullData, formula=MeanSCP~Treatment+Month+Block)
-summary(linmod)
+#Simplified linear model- multicollinearity for all values near 1, indicating that predictors are not highly correlated with each other. 
+simp_reg<-lm(SCP_Value ~ Treatment+ Block + MonthlyRange +TwoWeekMinTemp, data = join)
+simp_reg_2<-lm(SCP_Value~Block+MonthlyRange+TwoWeekMinTemp, data=filt)
+
+AIC(simp_reg)
+AIC(simp_reg_2)
+
+plot(simp_reg, which = 1)
+vif(simp_reg)
+summary(simp_reg_2)
+
+
+
+#Let's try some k-fold cross validation
+cv_results<-cv.glm(filt, simp_reg, K=10)
+
+cv_results$delta
+
+#Now let's do the regression for the sheltered treatment groups
+linreg_shelt<-lm(data=filt2, formula = SCP_Value~MonthlyRange*Block*TwoWeekMinTemp)
+summary(linreg_shelt)
 
 
